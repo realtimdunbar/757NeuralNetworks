@@ -1,0 +1,244 @@
+### Introduction  
+
+This paper demonstrates a very simple perceptron in R using the Iris data set. 
+
+The code being used comes from Faiyaz Hasan's [Notes on Perceptrons](https://rpubs.com/FaiHas/197581). I have made a few minor changes to fit the purpose of this paper.
+
+In this paper we will:
+
+* Prepare the R environment
+* Load and prepare the data
+* Discuss the perceptron algorithm in general
+* Walk through the specific implementation, step by step
+* Run R code the instantiates the specific implementation
+* Review the results
+* Discuss follow on issues
+
+### R Environment  
+
+Load `dplyr` and `ggplot2` for minor data manipulation and visualization
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+### Data  
+
+Load the entire Iris data set, and then subset the data frame to retain (a) only the species versicolor and setosa, and (b) the three features we will be using: sepal length, petal length, and species. 
+
+
+```{r}
+data(iris)
+irissubdf <- filter(iris, Species != "virginica") %>% 
+  select(c(1, 3, 5))
+names(irissubdf) <- c("sepal", "petal", "species")
+```
+
+As seen below, there is a very clear linear boundary between the two species when only considering these attributes.
+
+```{r}
+ggplot(irissubdf, aes(x = sepal, y = petal)) + 
+        geom_point(aes(colour = species, shape = species), size = 3) +
+        xlab("Sepal Length") + 
+        ylab("Petal Length") + 
+        ggtitle("Species vs Sepal and Petal Lengths")
+```
+
+Add a fourth column for binary labels corresponding to species, and initialize all values to 1.
+Then change the setosa label to -1. 
+
+```{r}
+irissubdf[, 4] <- 1
+irissubdf[irissubdf[, 3] == "setosa", 4] <- -1
+```
+
+Create a data frame, x, for the attributes (sepal length and petal length), and a data frame, y, for the class values (1 and -1).
+
+Note that y is actually a vector.
+
+```{r}
+x <- irissubdf[, c(1, 2)]
+y <- irissubdf[, 4]
+```
+
+Take a look.
+
+```{r}
+head(x, n = 3)
+tail(x, n = 3)
+head(y)
+tail(y)
+```
+
+Now we are ready to talk about the perceptron algorithm.
+
+### Perceptron Algorithm - General
+
+The perceptron algorithm is a very simple algorithm that performs binary classification with respect to a linear boundary.
+
+In essence, the perceptron performs three major functions:
+
+1. Transformation function  
+2. Activation function  
+3. Update function  
+
+The transformation function takes the vector of input features (in this case the sepal length and petal length for each of the Iris observations) and transforms it to a scalar using a vector of weights and a bias.
+
+The activation function takes the scalar output of the transformation function and produces a predicted class value.  This implementation uses the Heaviside step function to produce either a 1 or -1, but it could also be a sigmoid function that produces something like a probability.
+
+The update function compares the predicted value of the observation (that the Heaviside step function produced) to the actual value of the observation. If they are the same, nothing is changed. If they are different, the function updates the weights and bias for the next observation.
+
+### Percepton Algorithm - Implementation
+
+The R code implements the basic perceptron algorithm as follows:
+
+**Step 0: Input**
+
+  The `perceptron()` function takes four arguments:  
+  
+  * The data frame, x, of attributes  
+  * The vector, y, of class values  
+  * eta, a parameter that controls the learning rate
+  * n_iter, the number of epochs (i.e., iterations of convergence)
+
+**Step 1: Initialize Weights and Error Vectors**
+
+  Initialize a weights vector. This consists of three elements: two elements to correspond to the two features of the attributes, and one bias element. The vector is initialized such that all three elements are 0.
+
+  Initialize an errors vector to hold the number of errors in each epoch. Thus, the vector has as many elements as there are epochs in the input.
+
+**Step 2: Iterate Through the Epochs**  
+
+  Note: an epoch is simply the run of a full cycle of the data set.
+
+  Start a simple `for` loop that runs as many times as there are epochs.
+
+**Step 3: Iterate Through the Observations**  
+
+  For each epoch, iterate through all the observations in the data set.
+
+**Step 4: Transformation Function**    
+
+  For each observation, `x[i, ]`, multiply it by the weights vector and add the bias to get a scalar value, `z`.
+
+**Step 5: Activation Function**    
+
+  Using the Heavyside step function, assign a value of `1` or `-1` as the predicted value of `y` based on the sign -- positive or negative -- of the scalar value, `z`.
+
+**Step 6: Update Function**    
+
+  If the predicted value of `y` equals the actual value of `y`, don't do anything.
+
+  If the predicted values and actual values of `y` differ, update the weight vector.
+
+**Step 7: Update Error Vector** 
+
+  This is not part of the perceptron algorithm *per se*; rather, this simply allows us to see -- at the end -- how many errors were made in each epoch, and when convergence occurred.
+
+**Step 8: Continue Iterating Through the Observations**   
+
+  Self-explanatory
+
+**Step 9: Iterate through the Next Epoch** 
+
+  Self-explanatory
+
+**Step 10: Return Results**    
+
+  Both the final weights and the vector of errors are returned as a list.
+
+### Perceptron Algorithm - R Code
+
+
+```{r}
+perceptron <- function(x, y, eta, n_iter) {
+  
+        # Step 1
+        # Initialize weight vector with the number of columns in x, plus 1 (the bias)
+        # Initialize with 0 for each value
+        weight <- rep(0, dim(x)[2] + 1)
+        
+        # Initialize the error vector with the number of epochs
+        # Initialize with 0 for each epoch
+        errors <- rep(0, n_iter)
+        
+        # Step 2
+        # Loop over number of epochs (n_iter)
+        for (j in 1:n_iter) {
+                
+                # Step 3
+                # Loop through the data
+                for (i in 1:length(y)) {
+                        
+                        # Step 4: Transformation Function
+                        # Calculate scalar, z, from input (observation attributes) and current weight vector
+                        z <- sum(weight[2:length(weight)] * as.numeric(x[i, ])) + weight[1]
+
+                        # Step 5: Activation Function
+                        # Heaviside step functions assigns a binary classification to predicted value
+                        # based on sign (positive or negative) of z
+                        if(z < 0) {
+                                ypred <- -1
+                        } else {
+                                ypred <- 1
+                        }
+                        
+                        # Step 6: Update Function
+                        # Change the weight vector if the predicted value and actual value are different
+                        # Otherwise, don't do anything
+                        weightdiff <- eta * (y[i] - ypred) * c(1, as.numeric(x[i, ]))
+                        weight <- weight + weightdiff
+                        
+                        
+                        # Step 7: Update error vector
+                        if ((y[i] - ypred) != 0.0) {
+                                errors[j] <- errors[j] + 1
+                        }
+                        
+                }
+                # Step 8: Continue iterating through observations of this epoch
+        }
+        # Step 9: Move to the next epoch
+        
+        # Step 10: Return a list with final weights and error vector
+        results <- list("weights" = weight, "errors" = errors)
+        return(results)
+}
+```
+
+### Results  
+
+Run the algorithm with the `x` and `y` data, and parameters `eta =1` and `n_iter = 10`.  
+```{r}
+results <- perceptron(x, y, 1, 10)
+```
+
+The following are the final weights that will accurately classify a setosa or versicolor Iris.
+
+```{r}
+print(results$weights)
+```
+
+The following shows how many errors were made during each epoch, followed by a graph. The algorithm converged on the sixth epoch
+
+```{r}
+print(results$errors)
+```
+
+
+
+```{r}
+plot(1:10, results$errors, type = "l", lwd = 2, col = "red", xlab = "Epoch #", ylab = "Errors")
+title("Errors vs Epoch - Learning Rate eta = 1")
+```
+
+### Further Issues  
+
+This was the absolute simplest example of a perceptron I could find with R code to go along with it. There are several issues that I think ought to be examined further:
+
+* Transformation Function. In much of the literature, a dot product is created from the features vector and the weight vector before the bias is added. In this example, simple vector multiplication and summation seems to be used. I would like to go further to find out if and when each method is appropriate.
+
+* Activation Function. In most other examples I've seen, the sigmoid function is used to create a probability, not a `1` or `-1`. I would like to examine this further to find out if and when each method -- or others -- is appropriate.
+
+* Update Function. There is no given reason for using this particular update method. I think it bears further investigation as to whether there are other update methods, and -- if so -- when any particular update method is appropriate.
