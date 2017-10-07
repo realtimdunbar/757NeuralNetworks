@@ -148,6 +148,37 @@ The R code implements the basic perceptron algorithm as follows:
 
   Both the final weights and the vector of errors are returned as a list.
 
+### Activation Functions - R Code
+
+
+```{r}
+heaviside <- function(z) {
+  if(z < 0) {
+    ypred <- -1
+  } else {
+    ypred <- 1
+  }
+  
+  return(ypred)
+}
+
+sigmoid <- function(z) {
+  ypred <- 1 / (1 + exp(-z))
+  return(ypred)
+}
+
+tanh <- function(z) {
+  ypred <- (exp(z) - exp(-z)) / (exp(z) + exp(-z))
+  return(ypred)
+}
+
+relu <- function(z) {
+  ypred <- max(0, z)
+  return(ypred)
+}
+```
+
+
 ### Perceptron Algorithm - R Code
 
 
@@ -176,13 +207,20 @@ perceptron <- function(x, y, eta, n_iter) {
                         z <- sum(weight[2:length(weight)] * as.numeric(x[i, ])) + weight[1]
 
                         # Step 5: Activation Function
+                        # Uncomment the function you want to use and comment the others
+                        
                         # Heaviside step functions assigns a binary classification to predicted value
                         # based on sign (positive or negative) of z
-                        if(z < 0) {
-                                ypred <- -1
-                        } else {
-                                ypred <- 1
-                        }
+                        ypred <- heaviside(z)
+                        
+                        # sigmoid function returns a real number between 0 and 1, meant to simulate neurons
+                        #ypred <- sigmoid(z)
+                        
+                        # tanh function returns a real number between -1 and 1, sortof normalizes sigmoid
+                        #ypred <- tanh(z)
+                        
+                        # relu function returns a either 0 or 1, mitigates tanh and sigmoid slow learning tendency when the function levels out
+                        #ypred <- relu(z)
                         
                         # Step 6: Update Function
                         # Change the weight vector if the predicted value and actual value are different
